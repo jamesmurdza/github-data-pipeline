@@ -1,5 +1,5 @@
 import { db } from "./src/db/dbClient";
-import { analyses, leaderboard } from "./src/lib/schema";
+import { analyses, leaderboard } from "./src/db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Octokit } from "@octokit/rest";
 import { getBestToken } from "./src/lib/pat-pool";
