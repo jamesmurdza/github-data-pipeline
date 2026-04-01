@@ -37,6 +37,12 @@ Thumbs.db
 # If you have a build directory that is not `dist`
 # build/
 
+# TypeScript build output in root (should be in dist/)
+/*.js
+/*.js.map
+/*.d.ts
+/*.d.ts.map
+
 # Test files
 # *.test.ts
 # *.spec.ts
