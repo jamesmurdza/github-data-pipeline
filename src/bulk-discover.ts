@@ -1,10 +1,10 @@
-import { db } from "./src/db/dbClient";
-import { analyses, leaderboard } from "./src/db/schema";
+import { db } from "./db/dbClient";
+import { analyses, leaderboard } from "./db/schema";
 import { eq, sql } from "drizzle-orm";
 import { Octokit } from "@octokit/rest";
-import { getBestToken } from "./src/lib/pat-pool";
-import { fetchUserAnalysis } from "./src/lib/github";
-import { computeScore } from "./src/lib/scoring";
+import { getBestToken } from "./lib/pat-pool";
+import { fetchUserAnalysis } from "./lib/github";
+import { computeScore } from "./lib/scoring";
 
 const CONCURRENCY = 3; // Lowered to avoid secondary rate limits
 const WAIT_TIME_MS = 60 * 1000 * 5; // 5 minutes
