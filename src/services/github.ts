@@ -1,7 +1,7 @@
 import { graphql } from '@octokit/graphql';
 import { getBestToken, updateTokenUsage } from './pat-pool';
 
-interface User {
+export interface User {
   login: string;
   name?: string;
   avatarUrl?: string;
@@ -21,7 +21,7 @@ interface User {
   updatedAt: string;
 }
 
-interface Repository {
+export interface Repository {
   name: string;
   ownerLogin: string;
   stargazerCount: number;
@@ -38,7 +38,7 @@ interface LanguageBreakdown {
   [language: string]: number;
 }
 
-interface UserAnalysis {
+export interface UserAnalysis {
   user: User;
   repos: Repository[];
   languageBreakdown: LanguageBreakdown;
