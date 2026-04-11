@@ -80,7 +80,7 @@ pnpm db:push
 - **`analyses`** - Detailed user analysis with skill scores, top repos, languages
 - **`leaderboard`** - User rankings with profile info (name, avatar, bio, socials)
 
-Both tables are populated by `bulk-discover`. The worker processes jobs from Redis and writes to these tables.
+Both tables are populated by `bulk-discover` (directly) or by the worker (via Redis queue).
 
 ### Redis
 
