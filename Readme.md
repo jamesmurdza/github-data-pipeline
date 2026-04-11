@@ -72,3 +72,16 @@ Syncs the Drizzle ORM schema to your PostgreSQL database.
 ```bash
 pnpm db:push
 ```
+
+## Data Storage
+
+### PostgreSQL
+
+- **`analyses`** - Detailed user analysis with skill scores, top repos, languages
+- **`leaderboard`** - User rankings with profile info (name, avatar, bio, socials)
+
+Both tables are populated by `bulk-discover`. The worker processes jobs from Redis and writes to these tables.
+
+### Redis
+
+Used by BullMQ for the job queue. The worker consumes `github-pipeline` queue jobs containing usernames to process.
