@@ -41,12 +41,20 @@ pnpm start      # Production mode (requires pnpm build first)
 Searches GitHub for users by location and follower count, then analyzes and scores them. Processes users in batches with automatic rate limit handling.
 
 ```bash
-pnpm bulk-discover [location] [startRangeIndex] [startPage]
+pnpm bulk-discover [location] [rangeIndex] [page]
+```
 
-# Examples:
-pnpm bulk-discover                 # Default: Sydney
-pnpm bulk-discover "San Francisco"
-pnpm bulk-discover London 5 2      # Resume from range index 5, page 2
+- `location` - GitHub user location to search (default: "Sydney")
+- `rangeIndex` - Follower range index 0-15 to resume from (default: 0)
+- `page` - API page 1-10 within the range (default: 1)
+
+Follower ranges: `10..20`, `21..30`, `31..40`, `41..50`, `51..75`, `76..100`, `101..150`, `151..200`, `201..300`, `301..500`, `501..1000`, `1001..2000`, `2001..5000`, `5001..10000`, `>10000`, `0..9`
+
+```bash
+# Examples
+pnpm bulk-discover                 # Sydney, all ranges
+pnpm bulk-discover "San Francisco" # San Francisco, all ranges
+pnpm bulk-discover London 5 2      # London, resume from range 5 (51..75), page 2
 ```
 
 ### Push database schema
