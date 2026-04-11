@@ -1,5 +1,5 @@
 // src/lib/cache.ts
-import { redis } from './redis.js';
+import { redisConnection } from '../queue/queue.js';
 
 export async function withCache<T>(
   key: string,
@@ -7,9 +7,9 @@ export async function withCache<T>(
   ttlSeconds = 30
 ): Promise<T> {
   try {
-    const cached = await redis.get<T>(key);
+    const cached = await redisConnection.get(key);
     if (cached !== null) {
-      return cached;
+      return JSON.parse(cached) as T;
     }
   } catch {
     // Redis read failed, fall through to fetcher
@@ -18,7 +18,7 @@ export async function withCache<T>(
   const data = await fetcher();
 
   try {
-    await redis.set(key, JSON.stringify(data), { ex: ttlSeconds });
+    await redisConnection.setex(key, ttlSeconds, JSON.stringify(data));
   } catch {
     // Redis write failed, continue without caching
   }

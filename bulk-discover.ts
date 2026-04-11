@@ -1,8 +1,8 @@
-import { db } from "./src/db/dbClient.js";
+import { db } from "./src/db/client.js";
 import { analyses, leaderboard } from "./src/db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { Octokit } from "@octokit/rest";
-import { getBestToken } from "./src/lib/pat-pool.js";
+import { getBestToken } from "./src/github/token-pool.js";
 import { fetchUserAnalysis } from "./src/lib/github.js";
 import { computeScore } from "./src/lib/scoring.js";
 

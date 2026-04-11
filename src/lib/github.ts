@@ -1,5 +1,4 @@
 import { gitHubGraphqlClient } from '../github/graphqlClient.js';
-import { getBestToken, updateTokenUsage } from './pat-pool.js';
 
 interface User {
   login: string;

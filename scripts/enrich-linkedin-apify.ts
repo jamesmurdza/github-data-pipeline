@@ -1,5 +1,5 @@
 import 'dotenv/config';
-import { db } from '../src/db/dbClient.js';
+import { db } from '../src/db/client.js';
 import { sql } from 'drizzle-orm';
 
 const APIFY_ACTOR = 'bestscrapers~linkedin-open-to-work-status';
