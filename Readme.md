@@ -84,4 +84,5 @@ Both tables are populated by `bulk-discover` (directly) or by the worker (via Re
 
 ### Redis
 
-Used by BullMQ for the job queue. The worker consumes `github-pipeline` queue jobs containing usernames to process.
+- **Job queue** - BullMQ `github-pipeline` queue for the worker
+- **Cache** - Temporary data caching (30s TTL)
