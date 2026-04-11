@@ -2,6 +2,14 @@
 
 Analyze GitHub users and score their skills across AI, Backend, Frontend, DevOps, and Data domains.
 
+## Prerequisites
+
+- Node.js 18+
+- pnpm
+- PostgreSQL database
+- Redis instance (or Upstash account)
+- GitHub personal access token(s)
+
 ## Setup
 
 ```bash
