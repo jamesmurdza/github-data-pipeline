@@ -5,6 +5,7 @@ import { Octokit } from "@octokit/rest";
 import { getBestToken, updateTokenRateLimit, markTokenExhausted } from "./src/github/tokenPool.js";
 import { fetchUserAnalysis } from "./src/lib/github.js";
 import { computeScore } from "./src/lib/scoring.js";
+import { redis } from "./src/lib/redis.js";
 
 const CONCURRENCY = 3;
 const WAIT_TIME_MS = 60 * 1000; // Reduced to 1 minute for "all tokens exhausted" case
@@ -129,10 +130,15 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
           while (!batchSuccess) {
             try {
               await Promise.all(todo.map(async (username) => {
+                const cacheKey = `user-analysis:${username.toLowerCase()}`;
+                const isCached = await redis.get(cacheKey);
+                
                 const rawData = await fetchUserAnalysis(username);
                 const scored = computeScore(rawData);
                 await insertUserData(scored, username);
-                console.log(`      [ADDED] ${username} -> Score: ${scored.totalScore.toFixed(1)}`);
+                
+                const label = isCached ? "[CACHED]" : "[ADDED]";
+                console.log(`      ${label} ${username} -> Score: ${scored.totalScore.toFixed(1)}`);
               }));
               batchSuccess = true;
               await sleep(BATCH_DELAY_MS);
