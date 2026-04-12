@@ -2,132 +2,73 @@ import { db } from "./src/db/dbClient.js";
 import { analyses, leaderboard } from "./src/db/schema.js";
 import { eq, sql } from "drizzle-orm";
 import { Octokit } from "@octokit/rest";
-import { getBestToken } from "./src/lib/pat-pool.js";
+import { getBestToken, updateTokenRateLimit, markTokenExhausted } from "./src/github/tokenPool.js";
 import { fetchUserAnalysis } from "./src/lib/github.js";
 import { computeScore } from "./src/lib/scoring.js";
 
-const CONCURRENCY = 3; // Lowered to avoid secondary rate limits
-const WAIT_TIME_MS = 60 * 1000 * 5; // 5 minutes
-const BATCH_DELAY_MS = 200; // Small delay between batch processing
+const CONCURRENCY = 3;
+const WAIT_TIME_MS = 60 * 1000; // Reduced to 1 minute for "all tokens exhausted" case
+const BATCH_DELAY_MS = 200;
 
 async function sleep(ms: number) {
   return new Promise(resolve => setTimeout(resolve, ms));
 }
 
-// Raw SQL insertion to bypass schema issues
 async function insertUserData(scored: any, username: string) {
   const analysisData = {
     id: username.toLowerCase(),
     username: scored.user?.login || username,
-    total_score: scored.totalScore || 0,
-    ai_score: scored.aiScore || 0,
-    backend_score: scored.backendScore || 0,
-    frontend_score: scored.frontendScore || 0,
-    devops_score: scored.devopsScore || 0,
-    data_score: scored.dataScore || 0,
-    unique_skills_json: JSON.stringify(scored.uniqueSkills || []),
+    totalScore: scored.totalScore || 0,
+    aiScore: scored.aiScore || 0,
+    backendScore: scored.backendScore || 0,
+    frontendScore: scored.frontendScore || 0,
+    devopsScore: scored.devopsScore || 0,
+    dataScore: scored.dataScore || 0,
+    uniqueSkillsJson: scored.uniqueSkills || [],
     linkedin: scored.user?.linkedin || null,
-    top_repos_json: JSON.stringify(scored.topRepositories || []),
-    languages_json: JSON.stringify(scored.languageBreakdown || {}),
-    contribution_count: scored.contributionCount || 0,
-    cached_at: new Date(),
+    topReposJson: scored.topRepositories || [],
+    languagesJson: scored.languageBreakdown || {},
+    contributionCount: scored.contributionCount || 0,
+    cachedAt: new Date(),
   };
 
   const leaderboardData = {
     username: scored.user?.login || username,
     name: scored.user?.name || username,
-    avatar_url: scored.user?.avatarUrl || `https://github.com/${username}.png`,
+    avatarUrl: scored.user?.avatarUrl || `https://github.com/${username}.png`,
     url: scored.user?.url || `https://github.com/${username}`,
-    total_score: scored.totalScore || 0,
-    ai_score: scored.aiScore || 0,
-    backend_score: scored.backendScore || 0,
-    frontend_score: scored.frontendScore || 0,
-    devops_score: scored.devopsScore || 0,
-    data_score: scored.dataScore || 0,
-    unique_skills_json: JSON.stringify(scored.uniqueSkills || []),
+    totalScore: scored.totalScore || 0,
+    aiScore: scored.aiScore || 0,
+    backendScore: scored.backendScore || 0,
+    frontendScore: scored.frontendScore || 0,
+    devopsScore: scored.devopsScore || 0,
+    dataScore: scored.dataScore || 0,
+    uniqueSkillsJson: scored.uniqueSkills || [],
     company: scored.user?.company || null,
     blog: scored.user?.websiteUrl || null,
     location: scored.user?.location || null,
     email: scored.user?.email || null,
     bio: scored.user?.bio || null,
-    twitter_username: scored.user?.twitterUsername || null,
+    twitterUsername: scored.user?.twitterUsername || null,
     linkedin: scored.user?.linkedin || null,
     hireable: scored.user?.isHireable || false,
-    created_at: new Date(scored.user?.createdAt || Date.now()),
-    updated_at: new Date(),
+    createdAt: new Date(scored.user?.createdAt || Date.now()),
+    updatedAt: new Date(),
   };
 
-  // Insert into analyses table
-  await db.execute(sql`
-    INSERT INTO analyses (
-      id, username, total_score, ai_score, backend_score, frontend_score,
-      devops_score, data_score, unique_skills_json, linkedin, top_repos_json,
-      languages_json, contribution_count, cached_at
-    ) VALUES (
-      ${analysisData.id}, ${analysisData.username}, ${analysisData.total_score},
-      ${analysisData.ai_score}, ${analysisData.backend_score}, ${analysisData.frontend_score},
-      ${analysisData.devops_score}, ${analysisData.data_score}, ${analysisData.unique_skills_json},
-      ${analysisData.linkedin}, ${analysisData.top_repos_json}, ${analysisData.languages_json},
-      ${analysisData.contribution_count}, ${analysisData.cached_at}
-    )
-    ON CONFLICT (id) DO UPDATE SET
-      username = EXCLUDED.username,
-      total_score = EXCLUDED.total_score,
-      ai_score = EXCLUDED.ai_score,
-      backend_score = EXCLUDED.backend_score,
-      frontend_score = EXCLUDED.frontend_score,
-      devops_score = EXCLUDED.devops_score,
-      data_score = EXCLUDED.data_score,
-      unique_skills_json = EXCLUDED.unique_skills_json,
-      linkedin = EXCLUDED.linkedin,
-      top_repos_json = EXCLUDED.top_repos_json,
-      languages_json = EXCLUDED.languages_json,
-      contribution_count = EXCLUDED.contribution_count,
-      cached_at = EXCLUDED.cached_at
-  `);
+  await db.insert(analyses).values(analysisData).onConflictDoUpdate({
+    target: analyses.id,
+    set: analysisData
+  });
 
-  // Insert into leaderboard table
-  await db.execute(sql`
-    INSERT INTO leaderboard (
-      username, name, avatar_url, url, total_score, ai_score, backend_score,
-      frontend_score, devops_score, data_score, unique_skills_json, company,
-      blog, location, email, bio, twitter_username, linkedin, hireable,
-      created_at, updated_at
-    ) VALUES (
-      ${leaderboardData.username}, ${leaderboardData.name}, ${leaderboardData.avatar_url},
-      ${leaderboardData.url}, ${leaderboardData.total_score}, ${leaderboardData.ai_score},
-      ${leaderboardData.backend_score}, ${leaderboardData.frontend_score}, ${leaderboardData.devops_score},
-      ${leaderboardData.data_score}, ${leaderboardData.unique_skills_json}, ${leaderboardData.company},
-      ${leaderboardData.blog}, ${leaderboardData.location}, ${leaderboardData.email},
-      ${leaderboardData.bio}, ${leaderboardData.twitter_username}, ${leaderboardData.linkedin},
-      ${leaderboardData.hireable}, ${leaderboardData.created_at}, ${leaderboardData.updated_at}
-    )
-    ON CONFLICT (username) DO UPDATE SET
-      name = EXCLUDED.name,
-      avatar_url = EXCLUDED.avatar_url,
-      url = EXCLUDED.url,
-      total_score = EXCLUDED.total_score,
-      ai_score = EXCLUDED.ai_score,
-      backend_score = EXCLUDED.backend_score,
-      frontend_score = EXCLUDED.frontend_score,
-      devops_score = EXCLUDED.devops_score,
-      data_score = EXCLUDED.data_score,
-      unique_skills_json = EXCLUDED.unique_skills_json,
-      company = EXCLUDED.company,
-      blog = EXCLUDED.blog,
-      location = EXCLUDED.location,
-      email = EXCLUDED.email,
-      bio = EXCLUDED.bio,
-      twitter_username = EXCLUDED.twitter_username,
-      linkedin = EXCLUDED.linkedin,
-      hireable = EXCLUDED.hireable,
-      created_at = EXCLUDED.created_at,
-      updated_at = EXCLUDED.updated_at
-  `);
+  await db.insert(leaderboard).values(leaderboardData).onConflictDoUpdate({
+    target: leaderboard.username,
+    set: leaderboardData
+  });
 }
 
 async function bulkDiscover(location: string, startRangeIndex: number = 0, startPage: number = 1) {
-  console.log(`Starting Global Protocol Import for: ${location}`);
+  console.log(`Starting High-Efficiency Pipeline for: ${location}`);
 
   const ranges = [
     "10..20", "21..30", "31..40", "41..50",
@@ -145,24 +86,25 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
     let hasMore = true;
 
     while (hasMore && page <= 10) {
+      let tokenInfo;
       try {
-        let tokenData;
-        try {
-          tokenData = await getBestToken();
-        } catch (e: any) {
-          if (e.message.includes("rate-limited")) {
-            console.log(`  🕒 All tokens exhausted. Waiting 5 minutes before retry...`);
-            await sleep(WAIT_TIME_MS);
-            continue;
-          }
-          throw e;
-        }
+        tokenInfo = await getBestToken();
+      } catch (e: any) {
+        console.log(`🕒 All tokens exhausted. Waiting 1 minute...`);
+        await sleep(WAIT_TIME_MS);
+        continue;
+      }
 
-        const octokit = new Octokit({ auth: tokenData.token });
+      try {
+        const octokit = new Octokit({ auth: tokenInfo.token });
         const q = `location:"${location}" followers:${range} type:user`;
 
-        console.log(`  Fetching Registry Page ${page}...`);
-        const { data } = await octokit.search.users({ q, page, per_page: 100 });
+        console.log(`  Fetching Registry Page ${page} using Token ${tokenInfo.index}...`);
+        const { data, headers } = await octokit.search.users({ q, page, per_page: 100 });
+        
+        const remaining = parseInt(headers['x-ratelimit-remaining'] || '0', 10);
+        const resetTime = parseInt(headers['x-ratelimit-reset'] || '0', 10);
+        await updateTokenRateLimit(tokenInfo.index, remaining, resetTime);
 
         const usernames = data.items.map(u => u.login);
         if (usernames.length === 0) { hasMore = false; break; }
@@ -183,43 +125,48 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
 
           if (todo.length === 0) continue;
 
-          let success = false;
-          while (!success) {
+          let batchSuccess = false;
+          while (!batchSuccess) {
             try {
               await Promise.all(todo.map(async (username) => {
                 const rawData = await fetchUserAnalysis(username);
                 const scored = computeScore(rawData);
-
-                // Use raw SQL insertion to bypass schema issues
                 await insertUserData(scored, username);
-
-                if (scored.totalScore > 0) {
-                  console.log(`      [RANKED] ${username} -> ${scored.totalScore.toFixed(1)}`);
-                } else {
-                  console.log(`      [ADDED] ${username} (Score: 0.0)`);
-                }
+                console.log(`      [ADDED] ${username} -> Score: ${scored.totalScore.toFixed(1)}`);
               }));
-              success = true;
-              await sleep(BATCH_DELAY_MS); // Small delay to avoid secondary rate limit
+              batchSuccess = true;
+              await sleep(BATCH_DELAY_MS);
             } catch (batchError: any) {
-              if (batchError.message.includes("rate limited") || batchError.message.includes("rate-limited")) {
-                console.log(`      🕒 Batch rate limited (likely secondary/speed). Waiting 5 minutes...`);
-                await sleep(WAIT_TIME_MS);
+              if (batchError.message === 'rate-limited-all-tokens' || batchError.status === 403) {
+                console.log(`      🕒 Rate limit hit. Rotating token immediately...`);
+                // If it was a 403, getBestToken will naturally pick a new one next time
+                // if fetchUserAnalysis already marked it as exhausted.
+                // We just break the batch retry to pick a new token at the top level.
+                break; 
               } else {
-                console.log(`      ⚠️ Batch error: ${batchError.message}. Skipping batch segment.`);
-                success = true;
+                console.log(`      ⚠️ Batch error for ${todo.join(',')}: ${batchError.message}. Skipping.`);
+                batchSuccess = true;
               }
             }
+          }
+          if (!batchSuccess) {
+            // This means we hit a rate limit and need to restart the outer loop to get a new token
+            break; 
           }
         }
 
         if (usernames.length < 100) hasMore = false;
         page++;
       } catch (e: any) {
-        console.error(`  Range Error:`, e.message);
-        if (e.message.includes("rate-limited")) {
-          await sleep(WAIT_TIME_MS);
+        if (e.status === 403) {
+          const retryAfter = parseInt(e.headers?.['retry-after'] || '0', 10);
+          const resetTime = parseInt(e.headers?.['x-ratelimit-reset'] || '0', 10);
+          console.log(`  🚫 Token ${tokenInfo.index} Rate Limited. Retry-After: ${retryAfter}s`);
+          await markTokenExhausted(tokenInfo.index, resetTime);
+          // Don't increment page, just retry with a new token
+          continue; 
         } else {
+          console.error(`  Range Error:`, e.message);
           hasMore = false;
         }
       }

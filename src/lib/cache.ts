@@ -7,9 +7,15 @@ export async function withCache<T>(
   ttlSeconds = 30
 ): Promise<T> {
   try {
-    const cached = await redis.get<T>(key);
+    const cached = await redis.get(key);
     if (cached !== null) {
-      return cached;
+      // In our unified Redis interface, values are stored as JSON strings
+      try {
+        return JSON.parse(cached) as T;
+      } catch {
+        // Fallback for non-JSON strings
+        return cached as unknown as T;
+      }
     }
   } catch {
     // Redis read failed, fall through to fetcher
@@ -18,7 +24,7 @@ export async function withCache<T>(
   const data = await fetcher();
 
   try {
-    await redis.set(key, JSON.stringify(data), { ex: ttlSeconds });
+    await redis.set(key, JSON.stringify(data), 'EX', ttlSeconds);
   } catch {
     // Redis write failed, continue without caching
   }

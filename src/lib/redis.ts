@@ -1,21 +1,9 @@
 // src/lib/redis.ts
-import { Redis } from '@upstash/redis';
+import { redisConnection } from '../queue/queue.js';
 
-const url = process.env.UPSTASH_REDIS_REST_URL;
-const token = process.env.UPSTASH_REDIS_REST_TOKEN;
-
-if (!url) {
-  throw new Error(
-    'Missing UPSTASH_REDIS_REST_URL environment variable. ' +
-    'Get it from your Upstash console at https://console.upstash.com'
-  );
-}
-
-if (!token) {
-  throw new Error(
-    'Missing UPSTASH_REDIS_REST_TOKEN environment variable. ' +
-    'Get it from your Upstash console at https://console.upstash.com'
-  );
-}
-
-export const redis = new Redis({ url, token });
+/**
+ * Standardized Redis client instance.
+ * Re-exports the connection from the queue module which handles
+ * both TCP (ioredis) and REST (Upstash) fallbacks automatically.
+ */
+export const redis = redisConnection;

@@ -1,5 +1,4 @@
 import { gitHubGraphqlClient } from '../github/graphqlClient.js';
-import { getBestToken, updateTokenUsage } from './pat-pool.js';
 
 interface User {
   login: string;
@@ -257,7 +256,7 @@ export async function fetchUserAnalysis(username: string): Promise<UserAnalysis>
       variables: { login: username },
       operationName: 'UserAnalysis',
       useCache: true,
-      cacheTTL: 3600, // 1 hour
+      cacheTTL: 2592000, // 30 days
     });
 
     if (!userRes.user) {
@@ -310,7 +309,7 @@ export async function fetchUserAnalysis(username: string): Promise<UserAnalysis>
           variables: { searchQuery },
           operationName: 'SearchMergedPrs',
           useCache: true,
-          cacheTTL: 3600,
+          cacheTTL: 2592000,
         });
 
         // Count PRs per repository
