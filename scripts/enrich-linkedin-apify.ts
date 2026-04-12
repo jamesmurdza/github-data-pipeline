@@ -29,7 +29,7 @@ async function fetchTopUsers(): Promise<User[]> {
     WHERE linkedin_url IS NOT NULL
       AND (otw_scraped_at IS NULL OR otw_scraped_at < ${sevenDaysAgo})
     ORDER BY followers_count DESC
-    LIMIT 1000
+    LIMIT 5
   `);
   
   return result.rows as unknown as User[];
