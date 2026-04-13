@@ -2,8 +2,7 @@
 import { redis } from './redis.js';
 
 export const CACHE_TTL = {
-  DEFAULT: 3600, // 1 hour
-  LONG: 2592000, // 30 days
+  DEFAULT: 2592000, // 30 days
   SHORT: 300, // 5 minutes
 };
 
