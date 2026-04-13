@@ -8,12 +8,8 @@
     "dev": "tsx watch src/cli.ts",
     "build": "tsc",
     "start": "node dist/cli.js",
-<<<<<<< HEAD
-    "bulk-discover": "tsx bulk-discover.ts",
-    "enrich-linkedin": "tsx scripts/enrich-linkedin-apify.ts",
-=======
     "bulk-discover": "tsx src/scripts/bulk-discover.ts",
->>>>>>> feat/new-ai-model
+    "enrich-linkedin": "tsx src/scripts/enrich-linkedin-apify.ts",
     "db:push": "drizzle-kit push",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.ts\"",

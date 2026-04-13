@@ -354,3 +354,18 @@ export async function fetchUserAnalysis(username: string): Promise<UserAnalysis>
     2592000
   );
 }
+
+// Main function for testing
+if (import.meta.url === `file://${process.argv[1]}`) {
+  const [,, username] = process.argv;
+  if (!username) {
+    console.error('Usage: tsx src/lib/github.ts <username>');
+    process.exit(1);
+  }
+  fetchUserAnalysis(username).then((result) => {
+    console.log(JSON.stringify(result, null, 2));
+  }).catch((error) => {
+    console.error('Error:', error.message);
+    process.exit(1);
+  });
+}
