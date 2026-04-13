@@ -12,6 +12,8 @@ export interface RedisClient {
   set(key: string, value: string, ...args: any[]): Promise<void>;
   setex(key: string, ttl: number, value: string): Promise<void>;
   del(key: string): Promise<void>;
+  keys(pattern: string): Promise<string[]>;
+  ttl(key: string): Promise<number>;
 }
 
 // --- Redis Client Setup ---
@@ -76,6 +78,12 @@ function createUpstashRestRedis(restUrl: string, token: string): RedisClient {
     },
     del: async (key: string) => {
       await execCommand(['DEL', key]);
+    },
+    keys: async (pattern: string) => {
+      return (await execCommand(['KEYS', pattern])) || [];
+    },
+    ttl: async (key: string) => {
+      return await execCommand(['TTL', key]);
     }
   } as RedisClient;
 }
@@ -87,6 +95,8 @@ function createMockRedis(): RedisClient {
     set: () => Promise.resolve(),
     setex: () => Promise.resolve(),
     del: () => Promise.resolve(),
+    keys: () => Promise.resolve([]),
+    ttl: () => Promise.resolve(-1),
   } as RedisClient;
 }
 

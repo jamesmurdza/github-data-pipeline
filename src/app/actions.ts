@@ -1,7 +1,9 @@
 // src/app/actions.ts
 'use server';
 
-import { sql } from '../lib/db.js';
+import { sql as db } from '../lib/db.js';
+import { leaderboard } from '../db/schema.js';
+import { desc, gt, eq } from 'drizzle-orm';
 import { withCache } from '../lib/cache.js';
 
 interface MemberProfile {
@@ -17,14 +19,21 @@ export async function getTopMembers(limit = 10): Promise<MemberProfile[]> {
   return withCache(
     `leaderboard:top:${limit}`,
     async () => {
-      const rows = await sql`
-        SELECT username, name, avatar_url, total_score, bio, location
-        FROM leaderboard
-        WHERE total_score > 0
-        ORDER BY total_score DESC
-        LIMIT ${limit}
-      `;
-      return rows as MemberProfile[];
+      const results = await db
+        .select({
+          username: leaderboard.username,
+          name: leaderboard.name,
+          avatar_url: leaderboard.avatarUrl,
+          total_score: leaderboard.totalScore,
+          bio: leaderboard.bio,
+          location: leaderboard.location,
+        })
+        .from(leaderboard)
+        .where(gt(leaderboard.totalScore, 0))
+        .orderBy(desc(leaderboard.totalScore))
+        .limit(limit);
+      
+      return results as MemberProfile[];
     },
     60
   );
@@ -34,13 +43,20 @@ export async function getMemberProfile(username: string): Promise<MemberProfile 
   return withCache(
     `member:${username}`,
     async () => {
-      const rows = await sql`
-        SELECT username, name, avatar_url, total_score, bio, location
-        FROM leaderboard
-        WHERE username = ${username}
-        LIMIT 1
-      `;
-      return (rows[0] as MemberProfile) ?? null;
+      const results = await db
+        .select({
+          username: leaderboard.username,
+          name: leaderboard.name,
+          avatar_url: leaderboard.avatarUrl,
+          total_score: leaderboard.totalScore,
+          bio: leaderboard.bio,
+          location: leaderboard.location,
+        })
+        .from(leaderboard)
+        .where(eq(leaderboard.username, username))
+        .limit(1);
+      
+      return (results[0] as MemberProfile) ?? null;
     },
     30
   );
