@@ -47,8 +47,9 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
       let tokenInfo;
       try {
         tokenInfo = await getBestToken();
-      } catch (e: any) {
-        console.log(`🕒 All tokens exhausted. Waiting 1 minute... Error: ${e.message}`);
+      } catch (e: unknown) {
+        const errorMsg = e instanceof Error ? e.message : String(e);
+        console.log(`🕒 All tokens exhausted. Waiting 1 minute... Error: ${errorMsg}`);
         await sleep(WAIT_TIME_MS);
         continue;
       }
@@ -99,16 +100,18 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
                     await runPipeline(username);
                     const label = cached ? '[CACHED]' : '[ADDED]';
                     console.log(`      ${label} ${username} -> Refactored Pipeline Run Complete`);
-                  } catch (userError: any) {
-                    console.error(`      ❌ Error processing ${username}: ${userError.message}`);
+                  } catch (userError: unknown) {
+                    const errorMsg = userError instanceof Error ? userError.message : String(userError);
+                    console.error(`      ❌ Error processing ${username}: ${errorMsg}`);
                     throw userError;
                   }
                 })
               );
               batchSuccess = true;
               await sleep(BATCH_DELAY_MS);
-            } catch (batchError: any) {
-              if (batchError.message === 'rate-limited-all-tokens' || batchError.status === 403) {
+            } catch (batchError: unknown) {
+              const batchErrorObj = batchError instanceof Error ? batchError : new Error(String(batchError));
+              if ((batchErrorObj as any).message === 'rate-limited-all-tokens' || (batchErrorObj as any).status === 403) {
                 console.log(`      🕒 Rate limit hit. Rotating token immediately...`);
                 // If it was a 403, getBestToken will naturally pick a new one next time
                 // if fetchUserAnalysis already marked it as exhausted.
@@ -116,10 +119,10 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
                 break;
               } else {
                 console.error(
-                  `      ⚠️ Batch error for ${todo.join(',')}: ${batchError.message}`
+                  `      ⚠️ Batch error for ${todo.join(',')}: ${batchErrorObj.message}`
                 );
-                if (batchError.stack) {
-                  console.error(batchError.stack);
+                if ((batchErrorObj as any).stack) {
+                  console.error((batchErrorObj as any).stack);
                 }
                 batchSuccess = true;
               }
@@ -133,18 +136,19 @@ async function bulkDiscover(location: string, startRangeIndex: number = 0, start
 
         if (usernames.length < 100) hasMore = false;
         page++;
-      } catch (e: any) {
-        if (e.status === 403) {
-          const retryAfter = parseInt(e.headers?.['retry-after'] || '0', 10);
-          const resetTime = parseInt(e.headers?.['x-ratelimit-reset'] || '0', 10);
-          console.log(`  🚫 Token ${tokenInfo.index} Rate Limited. Retry-After: ${retryAfter}s`);
-          await markTokenExhausted(tokenInfo.index, resetTime);
+      } catch (e: unknown) {
+        const errorObj = e instanceof Error ? e : new Error(String(e));
+        if ((errorObj as any).status === 403) {
+          const retryAfter = parseInt((errorObj as any).headers?.['retry-after'] || '0', 10);
+          const resetTime = parseInt((errorObj as any).headers?.['x-ratelimit-reset'] || '0', 10);
+          console.log(`  🚫 Token ${(tokenInfo as any)?.index} Rate Limited. Retry-After: ${retryAfter}s`);
+          await markTokenExhausted((tokenInfo as any)?.index || 0, resetTime);
           // Don't increment page, just retry with a new token
           continue;
         } else {
-          console.error(`  Range Error:`, e.message);
-          if (e.stack) {
-            console.error(e.stack);
+          console.error(`  Range Error:`, errorObj.message);
+          if ((errorObj as any).stack) {
+            console.error((errorObj as any).stack);
           }
           hasMore = false;
         }

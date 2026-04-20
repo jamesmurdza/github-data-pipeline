@@ -92,7 +92,8 @@ async function computeAnalysisForUser(username: string) {
     if (categories.length > 0) {
       const scorePerCategory = repoScore / categories.length;
       for (const cat of categories) {
-        categoryScores[cat as keyof typeof categoryScores] += scorePerCategory;
+        const key = cat as keyof typeof categoryScores;
+        categoryScores[key] = (categoryScores[key] ?? 0) + scorePerCategory;
       }
     }
 
@@ -137,11 +138,11 @@ async function computeAnalysisForUser(username: string) {
     id: username.toLowerCase(),
     username,
     totalScore,
-    aiScore: categoryScores.ai,
-    backendScore: categoryScores.backend,
-    frontendScore: categoryScores.frontend,
-    devopsScore: categoryScores.devops,
-    dataScore: categoryScores.data,
+    aiScore: categoryScores.ai ?? 0,
+    backendScore: categoryScores.backend ?? 0,
+    frontendScore: categoryScores.frontend ?? 0,
+    devopsScore: categoryScores.devops ?? 0,
+    dataScore: categoryScores.data ?? 0,
     uniqueSkillsJson: topSkills,
     topReposJson: topReposList,
     languagesJson: languageFreq,
@@ -152,8 +153,8 @@ async function computeAnalysisForUser(username: string) {
 
   console.log(`[ANALYSE] ✅ Computed for ${username}:`);
   console.log(`  - Total Score: ${totalScore.toFixed(2)}`);
-  console.log(`  - AI: ${categoryScores.ai.toFixed(2)}, Backend: ${categoryScores.backend.toFixed(2)}, Frontend: ${categoryScores.frontend.toFixed(2)}`);
-  console.log(`  - DevOps: ${categoryScores.devops.toFixed(2)}, Data: ${categoryScores.data.toFixed(2)}`);
+  console.log(`  - AI: ${(categoryScores.ai ?? 0).toFixed(2)}, Backend: ${(categoryScores.backend ?? 0).toFixed(2)}, Frontend: ${(categoryScores.frontend ?? 0).toFixed(2)}`);
+  console.log(`  - DevOps: ${(categoryScores.devops ?? 0).toFixed(2)}, Data: ${(categoryScores.data ?? 0).toFixed(2)}`);
   console.log(`  - Skills: ${topSkills.join(', ')}`);
   console.log(`  - Contributions: ${totalContributions}`);
 

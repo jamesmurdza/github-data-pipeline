@@ -369,15 +369,6 @@ main().catch((error) => {
   console.error('\n❌ Fatal error:', error.message);
   process.exit(1);
 });
-=======
-import 'dotenv/config';
-import { neon } from '@neondatabase/serverless';
-
-const CONFIG = {
-  apiUrl: 'https://api.apify.com/v2/acts/bestscrapers~linkedin-open-to-work-status/run-sync-get-dataset-items',
-  retries: 2,
-  delayMs: 1500,
-};
 
 const getEnv = (key: string) => process.env[key] ?? (() => { throw new Error(`${key} not set`); })();
 const sql = neon(getEnv('DATABASE_URL'));

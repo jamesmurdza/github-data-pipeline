@@ -294,25 +294,26 @@ export async function fetchUserRepositories(username: string): Promise<Repositor
   }
 
   const allNodes = [
-    ...(res.user.repositories.nodes ?? []),
-    ...(res.user.repositoriesContributedTo.nodes ?? []),
+    ...(res.user?.repositories?.nodes ?? []),
+    ...(res.user?.repositoriesContributedTo?.nodes ?? []),
   ];
 
   const uniqueReposMap = new Map<string, Repository>();
   for (const node of allNodes) {
+    if (!node?.owner?.login || !node?.name) continue;
     const fullName = `${node.owner.login}/${node.name}`;
     if (!uniqueReposMap.has(fullName)) {
       uniqueReposMap.set(fullName, {
         name: node.name,
         ownerLogin: node.owner.login,
-        stargazerCount: node.stargazerCount,
+        stargazerCount: node.stargazerCount ?? 0,
         primaryLanguage: node.primaryLanguage?.name ?? null,
-        pushedAt: node.pushedAt,
-        isFork: node.isFork,
-        mergedPrCount: node.pullRequests.totalCount,
+        pushedAt: node.pushedAt ?? null,
+        isFork: node.isFork ?? false,
+        mergedPrCount: node.pullRequests?.totalCount ?? 0,
         mergedPrsByUserCount: 0, // Placeholder
-        topics: node.repositoryTopics.nodes.map((n) => n.topic.name),
-        languages: node.languages.nodes.map((n) => n.name),
+        topics: node.repositoryTopics?.nodes?.map((n) => n.topic.name) ?? [],
+        languages: node.languages?.nodes?.map((n) => n.name) ?? [],
       });
     }
   }
@@ -337,7 +338,8 @@ export async function fetchPullRequestsForRepo(owner: string, repo: string): Pro
     throw new Error(`Repository "${owner}/${repo}" not found`);
   }
 
-  return res.repository.pullRequests.nodes.map((node) => ({
+  const nodes = res.repository?.pullRequests?.nodes ?? [];
+  return nodes.map((node) => ({
     id: node.id,
     url: node.url,
     repoId: `${owner}/${repo}`,

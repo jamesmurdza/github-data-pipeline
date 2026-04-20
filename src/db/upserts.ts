@@ -1,6 +1,6 @@
 import { db } from './dbClient.js';
-import { githubUsers, githubRepos, githubPullRequests, userRepoScores } from './schema.js';
 import type { User, Repository, PullRequest } from '../types/github.js';
+import { githubUsers, githubRepos, githubPullRequests, userRepoScores } from './schema.js';
 import { sql } from 'drizzle-orm';
 
 /**

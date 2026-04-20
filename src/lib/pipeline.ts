@@ -60,14 +60,16 @@ export async function scrapeUser(username: string): Promise<void> {
           totalPrsSaved += userPrs.length;
           console.log(`  └─ [${repo.ownerLogin}/${repo.name}] Found ${userPrs.length} PRs.`);
         }
-      } catch (error: any) {
-        console.error(`  └─ [${repo.ownerLogin}/${repo.name}] ❌ Error: ${error.message}`);
+      } catch (error: unknown) {
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        console.error(`  └─ [${repo.ownerLogin}/${repo.name}] ❌ Error: ${errorMsg}`);
       }
     }
 
     console.log(`[SCRAPE][COMPLETE] ✅ Total PRs: ${totalPrsSaved}`);
-  } catch (error: any) {
-    console.error(`[SCRAPE][ERROR] ${error.message}`);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[SCRAPE][ERROR] ${errorMsg}`);
     throw error;
   }
 }
@@ -158,10 +160,15 @@ export async function updateUserScores(username: string) {
   console.log(`[AGGREGATE][COMPLETE] ✅ Score: ${totalScore.toFixed(2)}`);
 }
 
-async function syncToLegacyTables(agg: any, username: string) {
+async function syncToLegacyTables(
+  agg: { totalScore: number; contributionCount?: number },
+  username: string
+): Promise<void> {
   const userRows = await db.select().from(githubUsers).where(eq(githubUsers.username, username)).limit(1);
   const user = userRows[0];
-  if (!user) return;
+  if (!user) {
+    return;
+  }
 
   // Sync to legacy 'users' table
   const legacyUserData = {
@@ -193,10 +200,10 @@ async function syncToLegacyTables(agg: any, username: string) {
   // Sync to leaderboard table
   const leaderboardData = {
     username: user.username,
-    name: user.name,
-    avatarUrl: user.avatarUrl,
+    name: user.name ?? null,
+    avatarUrl: user.avatarUrl ?? null,
     totalScore: agg.totalScore,
-    contributionCount: agg.contributionCount,
+    contributionCount: agg.contributionCount ?? 0,
     updatedAt: new Date(),
   };
 
@@ -292,7 +299,8 @@ export async function analyzeUserSkills(username: string) {
       if (categories.length > 0) {
         const scorePerCategory = repoScore / categories.length;
         for (const cat of categories) {
-          categoryScores[cat as keyof typeof categoryScores] += scorePerCategory;
+          const key = cat as keyof typeof categoryScores;
+          categoryScores[key] = (categoryScores[key] ?? 0) + scorePerCategory;
         }
       }
 
@@ -337,11 +345,11 @@ export async function analyzeUserSkills(username: string) {
       id: username.toLowerCase(),
       username,
       totalScore,
-      aiScore: categoryScores.ai,
-      backendScore: categoryScores.backend,
-      frontendScore: categoryScores.frontend,
-      devopsScore: categoryScores.devops,
-      dataScore: categoryScores.data,
+      aiScore: categoryScores.ai ?? 0,
+      backendScore: categoryScores.backend ?? 0,
+      frontendScore: categoryScores.frontend ?? 0,
+      devopsScore: categoryScores.devops ?? 0,
+      dataScore: categoryScores.data ?? 0,
       uniqueSkillsJson: topSkills,
       topReposJson: topReposList,
       languagesJson: languageFreq,
@@ -356,11 +364,12 @@ export async function analyzeUserSkills(username: string) {
     });
 
     console.log(`[ANALYZE][COMPLETE] ✅ Skills analyzed`);
-    console.log(`  - AI: ${categoryScores.ai.toFixed(2)}, Backend: ${categoryScores.backend.toFixed(2)}, Frontend: ${categoryScores.frontend.toFixed(2)}`);
-    console.log(`  - DevOps: ${categoryScores.devops.toFixed(2)}, Data: ${categoryScores.data.toFixed(2)}`);
+    console.log(`  - AI: ${(categoryScores.ai ?? 0).toFixed(2)}, Backend: ${(categoryScores.backend ?? 0).toFixed(2)}, Frontend: ${(categoryScores.frontend ?? 0).toFixed(2)}`);
+    console.log(`  - DevOps: ${(categoryScores.devops ?? 0).toFixed(2)}, Data: ${(categoryScores.data ?? 0).toFixed(2)}`);
     console.log(`  - Top Skills: ${topSkills.slice(0, 5).join(', ')}`);
-  } catch (error: any) {
-    console.error(`[ANALYZE][ERROR] ${error.message}`);
+  } catch (error: unknown) {
+    const errorMsg = error instanceof Error ? error.message : String(error);
+    console.error(`[ANALYZE][ERROR] ${errorMsg}`);
     throw error;
   }
 }
