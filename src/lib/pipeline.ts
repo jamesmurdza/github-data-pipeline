@@ -16,7 +16,8 @@ import {
   githubPullRequests,
   userRepoScores, 
   userScores,
-  leaderboard
+  leaderboard,
+  users
 } from '../db/schema.js';
 import { eq, sql, desc } from 'drizzle-orm';
 import { 
@@ -166,6 +167,34 @@ async function syncToLegacyTables(agg: any, username: string) {
   const user = userRows[0];
   if (!user) return;
 
+  // Sync to legacy 'users' table
+  const legacyUserData = {
+    username: user.username,
+    name: user.name ?? null,
+    avatarUrl: user.avatarUrl ?? null,
+    bio: user.bio ?? null,
+    company: user.company ?? null,
+    blog: user.blog ?? null,
+    location: user.location ?? null,
+    email: user.email ?? null,
+    twitterUsername: user.twitterUsername ?? null,
+    hireable: user.hireable ?? null,
+    websiteUrl: user.blog ?? null,
+    followers: user.followers ?? 0,
+    following: user.following ?? 0,
+    publicRepos: 0,
+    score: agg.totalScore ?? 0,
+    lastFetched: new Date(),
+    updatedAt: new Date(),
+  };
+
+  await db.insert(users).values(legacyUserData).onConflictDoUpdate({
+    target: users.username,
+    set: legacyUserData,
+  });
+  console.log(`[SYNC] ✅ Synced ${username} to users table`);
+
+  // Sync to leaderboard table
   const leaderboardData = {
     username: user.username,
     name: user.name,
