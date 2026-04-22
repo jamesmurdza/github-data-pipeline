@@ -6,9 +6,9 @@ import { getBestToken, updateTokenRateLimit, markTokenExhausted } from '../githu
 import { runPipeline } from '../lib/pipeline.js';
 import { getCachedUser } from '../lib/cache.js';
 
-const CONCURRENCY = 3;
-const WAIT_TIME_MS = 60 * 1000; // Reduced to 1 minute for "all tokens exhausted" case
-const BATCH_DELAY_MS = 200;
+const CONCURRENCY = 1;
+const WAIT_TIME_MS = 5 * 60 * 1000; // 5 minutes for "all tokens exhausted" case
+const BATCH_DELAY_MS = 1500; // 1.5 seconds between batches
 
 async function sleep(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
